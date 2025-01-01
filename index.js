@@ -25,18 +25,28 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const menuCollention = client.db('bistroDb').collection('menu')
-    const reviewCollention = client.db('bistroDb').collection('reviews')
+    const menuCollention = client.db("bistroDb").collection("menu");
+    const reviewCollention = client.db("bistroDb").collection("reviews");
+    const cartCollention = client.db("bistroDb").collection("carts");
 
-    app.get('/menu', async(req, res)=>{
-      const result = await menuCollention.find().toArray()
-      res.send(result)
-    })
-    app.get('/reviews', async(req, res)=>{
-      const result = await reviewCollention.find().toArray()
-      res.send(result)
-    })
+    // get all menu data
+    app.get("/menu", async (req, res) => {
+      const result = await menuCollention.find().toArray();
+      res.send(result);
+    });
 
+    // get all reviews data
+    app.get("/reviews", async (req, res) => {
+      const result = await reviewCollention.find().toArray();
+      res.send(result);
+    });
+
+    // post cart item to database
+    app.post("/carts", async (req, res) => {
+      const cartItem = req.body;
+      const result = await cartCollention.insertOne(cartItem);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
