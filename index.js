@@ -41,6 +41,13 @@ async function run() {
       res.send(result);
     });
 
+    //get user specific data from cartCollection
+    app.get('/carts', async(req, res)=>{
+      const email = req.query.email
+      const query = {email: email}
+      const result = await cartCollention.find(query).toArray()
+      res.send(result)
+    })
     // post cart item to database
     app.post("/carts", async (req, res) => {
       const cartItem = req.body;
