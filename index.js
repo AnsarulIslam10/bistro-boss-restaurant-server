@@ -25,6 +25,18 @@ const verifyToken = (req, res, next) => {
   });
 };
 
+const verifyAdmin = async (req, res, next)=>{
+  const email = req.decoded.email;
+  const query = {email: email}
+  const user = await userCollention.findOne(query)
+  const isAdmin = user?.role === 'admin'
+  if (isAdmin) {
+    return res.status(403).send({message: 'Forbidden Access'})
+  }
+  next()
+}
+
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.8ggzn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -56,10 +68,24 @@ async function run() {
     });
 
     // users related api
-    app.get("/users", verifyToken, async (req, res) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollention.find().toArray();
       res.send(result);
     });
+
+    app.get('/users/admin/:email', verifyToken, async (req, res)=>{
+      const email = req.params.email
+      if (email !== req.decoded.email) {
+        return res.status(403).send({message: 'Forbidden Access'})
+      }
+      const query = {email: email}
+      const user = await userCollention.findOne(query)
+      let admin = false;
+      if (user) {
+        admin = user?.role === 'admin'
+      }
+      res.send({admin})
+    })
 
     app.post("/users", async (req, res) => {
       const user = req.body;
@@ -73,7 +99,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/users/admin/:id", async (req, res) => {
+    app.patch("/users/admin/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
@@ -85,7 +111,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/users/:id", async (req, res) => {
+    app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await userCollention.deleteOne(query);
