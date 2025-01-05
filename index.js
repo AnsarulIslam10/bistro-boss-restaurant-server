@@ -1,6 +1,7 @@
 const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const jwt = require("jsonwebtoken");
 const app = express();
 const cors = require("cors");
 const port = process.env.PORT || 5000;
@@ -8,6 +9,21 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(cors());
 app.use(express.json());
+
+const verifyToken = (req, res, next) => {
+  console.log("inside token----->", req.headers.authorization);
+  if (!req.headers.authorization) {
+    return res.status(401).send({ message: "unAuthorized Access" });
+  }
+  const token = req.headers.authorization.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unAuthorized Access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.8ggzn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -30,44 +46,52 @@ async function run() {
     const reviewCollention = client.db("bistroDb").collection("reviews");
     const cartCollention = client.db("bistroDb").collection("carts");
 
-    // users related api
-    app.get('/users', async(req, res)=>{
-      const result = await userCollention.find().toArray()
-      res.send(result)
-    })
-    
-    app.post('/users', async (req, res)=>{
-      const user = req.body
-      // insert email if user doesn't exists
-      const query = {email: user.email}
-      const existingUser = await userCollention.findOne(query)
-      if (existingUser) {
-        return res.send({message: 'user already exists', insertedId: null})
-      }
-      const result = await userCollention.insertOne(user)
-      res.send(result)
-    })
+    // jwt related apis
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
 
-    app.patch('/users/admin/:id', async(req, res)=>{
-      const id = req.params.id
-      const filter = {_id: new ObjectId(id) }
+    // users related api
+    app.get("/users", verifyToken, async (req, res) => {
+      const result = await userCollention.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      // insert email if user doesn't exists
+      const query = { email: user.email };
+      const existingUser = await userCollention.findOne(query);
+      if (existingUser) {
+        return res.send({ message: "user already exists", insertedId: null });
+      }
+      const result = await userCollention.insertOne(user);
+      res.send(result);
+    });
+
+    app.patch("/users/admin/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
       const updatedDoc = {
         $set: {
-          role: 'admin'
-        }
-      }
-      const result = await userCollention.updateOne(filter, updatedDoc)
-      res.send(result)
-    })
+          role: "admin",
+        },
+      };
+      const result = await userCollention.updateOne(filter, updatedDoc);
+      res.send(result);
+    });
 
-    app.delete("/users/:id", async(req, res)=>{
+    app.delete("/users/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)}
-      const result = await userCollention.deleteOne(query)
-      res.send(result)
-    })
-    
-    
+      const query = { _id: new ObjectId(id) };
+      const result = await userCollention.deleteOne(query);
+      res.send(result);
+    });
+
     // menu related apis
     // get all menu data
     app.get("/menu", async (req, res) => {
@@ -82,12 +106,12 @@ async function run() {
     });
 
     //get user specific data from cartCollection
-    app.get('/carts', async(req, res)=>{
-      const email = req.query.email
-      const query = {email: email}
-      const result = await cartCollention.find(query).toArray()
-      res.send(result)
-    })
+    app.get("/carts", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await cartCollention.find(query).toArray();
+      res.send(result);
+    });
     // post cart item to database
     app.post("/carts", async (req, res) => {
       const cartItem = req.body;
@@ -96,13 +120,12 @@ async function run() {
     });
 
     // delete cart item
-    app.delete('/carts/:id', async(req, res)=>{
+    app.delete("/carts/:id", async (req, res) => {
       const id = req.params.id;
-      const query = {_id: new ObjectId(id)}
-      const result = await cartCollention.deleteOne(query)
-      res.send(result)
-    })
-
+      const query = { _id: new ObjectId(id) };
+      const result = await cartCollention.deleteOne(query);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
