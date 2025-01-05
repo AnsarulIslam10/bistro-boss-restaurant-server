@@ -28,7 +28,7 @@ const verifyToken = (req, res, next) => {
 const verifyAdmin = async (req, res, next)=>{
   const email = req.decoded.email;
   const query = {email: email}
-  const user = await userCollention.findOne(query)
+  const user = await userCollection.findOne(query)
   const isAdmin = user?.role === 'admin'
   if (isAdmin) {
     return res.status(403).send({message: 'Forbidden Access'})
@@ -53,7 +53,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const userCollention = client.db("bistroDb").collection("users");
+    const userCollection = client.db("bistroDb").collection("users");
     const menuCollention = client.db("bistroDb").collection("menu");
     const reviewCollention = client.db("bistroDb").collection("reviews");
     const cartCollention = client.db("bistroDb").collection("carts");
@@ -69,7 +69,7 @@ async function run() {
 
     // users related api
     app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
-      const result = await userCollention.find().toArray();
+      const result = await userCollection.find().toArray();
       res.send(result);
     });
 
@@ -79,7 +79,7 @@ async function run() {
         return res.status(403).send({message: 'Forbidden Access'})
       }
       const query = {email: email}
-      const user = await userCollention.findOne(query)
+      const user = await userCollection.findOne(query)
       let admin = false;
       if (user) {
         admin = user?.role === 'admin'
@@ -91,11 +91,11 @@ async function run() {
       const user = req.body;
       // insert email if user doesn't exists
       const query = { email: user.email };
-      const existingUser = await userCollention.findOne(query);
+      const existingUser = await userCollection.findOne(query);
       if (existingUser) {
         return res.send({ message: "user already exists", insertedId: null });
       }
-      const result = await userCollention.insertOne(user);
+      const result = await userCollection.insertOne(user);
       res.send(result);
     });
 
@@ -107,14 +107,14 @@ async function run() {
           role: "admin",
         },
       };
-      const result = await userCollention.updateOne(filter, updatedDoc);
+      const result = await userCollection.updateOne(filter, updatedDoc);
       res.send(result);
     });
 
     app.delete("/users/:id", verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const result = await userCollention.deleteOne(query);
+      const result = await userCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -124,6 +124,12 @@ async function run() {
       const result = await menuCollention.find().toArray();
       res.send(result);
     });
+
+    app.post('/menu', verifyToken, verifyAdmin, async(req, res)=>{
+      const item = req.body
+      const result = await menuCollention.insertOne(item)
+      res.send(result)
+    })
 
     // get all reviews data
     app.get("/reviews", async (req, res) => {
